@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="حُسبان الإسلامي">
+<title>ساعة حُسبان الإسلامية</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&family=Roboto:wght@300;400&display=swap">
+<style>
+/* Islamic model of ساعة حُسبان: white clock face, current prayer with elapsed time, prayer list, qibla, city picker.
+   Same solar engine (hisban-core.js) and same countries/cities as the main clock. */
+:root{
+  --bg:#ffffff; --ink:#1c1f23; --muted:#8e959c; --soft:#f3f5f7; --line:#e7eaee;
+  --blue:#2aa7d8; --teal:#1d4e5f; --gold:#c9972e;
+  --face:#ffffff; --shadow:rgba(30,40,60,.10);
+  --body:"Cairo","Segoe UI",Tahoma,sans-serif;
+  --num:"Roboto","Segoe UI",Arial,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:100vh;
+  padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+button{font:inherit;color:inherit}
+.wrap{max-width:480px;margin:0 auto;padding:12px 16px 0}
+.top{display:flex;justify-content:flex-start;padding-top:env(safe-area-inset-top,0px)}
+.iconbtn{width:44px;height:44px;border:0;background:transparent;display:grid;place-items:center;cursor:pointer;border-radius:12px}
+.iconbtn:focus-visible,.tab:focus-visible,.item:focus-visible,.pbtn:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.place{text-align:center;margin:18px 0 4px}
+.place h1{margin:0;font-weight:600;font-size:2rem;line-height:1.2;display:inline-flex;align-items:center;gap:10px}
+.place p{margin:6px 0 0;color:var(--muted);font-size:1rem}
+.view[hidden]{display:none}
+/* clock */
+.face{display:block;width:min(86vw,360px);margin:20px auto 0;filter:drop-shadow(0 18px 30px var(--shadow))}
+.now{text-align:center;margin-top:22px}
+.now .pr{color:var(--teal);font-size:2.2rem;font-weight:600;line-height:1.2}
+.now .at{color:var(--muted);font-size:1.35rem;margin-top:6px;font-family:var(--num);direction:ltr;unicode-bidi:isolate}
+.now .el{font-family:var(--num);font-weight:300;font-size:2.6rem;letter-spacing:.06em;margin-top:6px;direction:ltr;unicode-bidi:isolate}
+.now .nx{color:var(--muted);font-size:.95rem;margin-top:4px}
+.now .nx b{color:var(--ink);font-weight:600}
+.data{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:24px 0 8px}
+.cell{background:var(--soft);border-radius:16px;padding:10px 12px;text-align:center;min-width:0}
+.cell span{display:block;color:var(--muted);font-size:.8rem}
+.cell b{display:block;font-family:var(--num);font-weight:400;font-size:1.15rem;direction:ltr;unicode-bidi:isolate;white-space:nowrap}
+.cell small{display:block;color:var(--muted);font-family:var(--num);font-size:.72rem;direction:ltr;white-space:nowrap}
+.cell.wide{grid-column:1/-1}
+.cell .hb{color:var(--gold);font-size:1.5rem}
+.dates{display:flex;justify-content:space-between;color:var(--muted);font-size:.9rem;margin:6px 4px 0}
+/* prayer list */
+.list{margin-top:18px;display:grid;gap:8px}
+.row{display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;padding:14px 16px;border-radius:16px;background:var(--soft)}
+.row .n{font-weight:600;font-size:1.1rem}
+.row .t{font-family:var(--num);font-size:1.15rem;direction:ltr;unicode-bidi:isolate}
+.row .a{font-family:var(--num);color:var(--gold);font-size:.85rem;direction:ltr;unicode-bidi:isolate;min-width:84px;text-align:left}
+.row.on{background:var(--blue);color:#fff}.row.on .a{color:#fff}
+.row.sun .n{color:var(--muted);font-weight:400}
+.opts{display:flex;gap:8px;justify-content:center;margin:16px 0 4px;flex-wrap:wrap}
+.pbtn{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 14px;cursor:pointer;font-size:.9rem}
+.pbtn[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);color:#fff}
+.note{color:var(--muted);font-size:.8rem;text-align:center;margin:10px 8px 0;line-height:1.7}
+/* qibla */
+.qb{text-align:center;margin-top:10px}
+.qb .big{font-family:var(--num);font-size:2.4rem;font-weight:300;direction:ltr;unicode-bidi:isolate}
+.qb .msg{color:var(--muted);margin-top:4px;min-height:1.6em}
+.main{border:0;background:var(--blue);color:#fff;border-radius:999px;padding:12px 26px;font-weight:600;cursor:pointer;margin-top:12px;font-size:1rem}
+/* cities */
+.grp{color:var(--muted);font-size:.85rem;margin:16px 4px 8px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.item{border:1px solid var(--line);background:#fff;border-radius:14px;padding:12px;text-align:start;cursor:pointer;font-weight:600;font-size:.98rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item small{display:block;color:var(--muted);font-weight:400;font-size:.75rem}
+.item.on{border-color:var(--blue);color:var(--blue)}
+.back{border:0;background:transparent;color:var(--blue);font-weight:600;cursor:pointer;padding:8px 0;font-size:1rem}
+/* bottom tabs */
+nav.tabs{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px));z-index:5}
+.tab{border:0;background:transparent;display:flex;flex-direction:column;align-items:center;gap:2px;color:#a3a9b0;cursor:pointer;font-size:.72rem;padding:4px 10px;border-radius:12px}
+.tab[aria-selected="true"]{color:var(--blue)}
+.tab svg{width:30px;height:30px}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><button class="iconbtn" id="menu" aria-label="اختيار الدولة والمدينة">
+    <svg width="34" height="30" viewBox="0 0 34 30" aria-hidden="true"><path d="M2 4h30M10 15h22M18 26h14" stroke="#111" stroke-width="3" stroke-linecap="round"/></svg></button></div>
+  <div class="place"><h1><span id="city"></span>
+    <svg width="26" height="30" viewBox="0 0 26 30" aria-hidden="true"><path d="M6 2h14l-2 3v8l5 5H3l5-5V5z" fill="var(--blue)"/><path d="M13 18v11" stroke="var(--blue)" stroke-width="2.6" stroke-linecap="round"/></svg></h1>
+    <p id="sub"></p></div>
+
+  <!-- 1) clock -->
+  <section class="view" id="v-clock">
+    <svg class="face" id="face" viewBox="0 0 300 300" role="img" aria-label="قرص زاوية حُسبان"></svg>
+    <div class="now" aria-live="polite">
+      <div class="pr" id="prName">—</div>
+      <div class="at" id="prAt">—</div>
+      <div class="el" id="prEl">—</div>
+      <div class="nx" id="prNext"></div>
+    </div>
+    <div class="data">
+      <div class="cell wide"><span>زاوية حُسبان</span><b class="hb" id="hb">—</b></div>
+      <div class="cell"><span>☀ الشروق</span><b id="rise">—</b><small id="riseU"></small></div>
+      <div class="cell"><span>☾ الغروب</span><b id="set">—</b><small id="setU"></small></div>
+      <div class="cell"><span id="pctL">مؤشر النهار</span><b id="pct">—</b></div>
+      <div class="cell"><span>قوس النهار / الليل</span><b id="arcs" style="font-size:.95rem">—</b></div>
+    </div>
+    <div class="dates"><span id="greg"></span><span id="hijri"></span></div>
+  </section>
+
+  <!-- 2) prayer times -->
+  <section class="view" id="v-list" hidden>
+    <div class="list" id="list"></div>
+    <div class="opts" role="group" aria-label="مذهب حساب العصر">
+      <button class="pbtn" id="asr1" aria-pressed="true">العصر: الجمهور</button>
+      <button class="pbtn" id="asr2" aria-pressed="false">العصر: الحنفي</button>
+    </div>
+    <p class="note" id="method"></p>
+  </section>
+
+  <!-- 3) qibla -->
+  <section class="view" id="v-qibla" hidden>
+    <svg class="face" id="qface" viewBox="0 0 300 300" role="img" aria-label="بوصلة القبلة"></svg>
+    <div class="qb">
+      <div class="big" id="qDeg">—</div>
+      <div class="msg" id="qMsg">اضغط «تشغيل البوصلة» وضع الهاتف أفقيًا</div>
+      <button class="main" id="qBtn">تشغيل البوصلة</button>
+      <p class="note">البوصلة تعمل دون إنترنت من مستشعر الهاتف. ابتعد عن المعادن والسيارات لتصح القراءة.</p>
+    </div>
+  </section>
+
+  <!-- 4) countries & cities -->
+  <section class="view" id="v-world" hidden>
+    <button class="back" id="back" hidden>→ كل الدول</button>
+    <div id="world"></div>
+  </section>
+</div>
+
+<nav class="tabs" role="tablist" aria-label="الأقسام">
+  <button class="tab" role="tab" data-v="clock" aria-selected="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.6"><circle cx="16" cy="16" r="13"/><path d="M16 8v8l5 4" stroke-linecap="round"/></svg>الساعة</button>
+  <button class="tab" role="tab" data-v="list" aria-selected="false"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 8h22M5 13h22M5 18h22M5 23h22"/></svg>المواقيت</button>
+  <button class="tab" role="tab" data-v="world" aria-selected="false"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="16" cy="16" r="13"/><path d="M3 16h26M16 3c-6 7-6 19 0 26M16 3c6 7 6 19 0 26"/></svg>المدن</button>
+  <button class="tab" role="tab" data-v="qibla" aria-selected="false"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="currentColor"/><path d="M21.5 10.5l-3.4 7.6-7.6 3.4 3.4-7.6z" fill="#fff"/></svg>القبلة</button>
+</nav>
+
+<script src="hisban-core.js"></script>
+<script>
+// countries (name, group) and their main cities [name, lat, lon, IANA zone] — same data as ساعة حُسبان
+const COUNTRY_NAMES=[["الجزائر",0],["المغرب",0],["تونس",0],["ليبيا",0],["مصر",0],["السودان",0],["موريتانيا",0],["السعودية",0],["اليمن",0],["عُمان",0],["الإمارات",0],["قطر",0],["الكويت",0],["العراق",0],["سوريا",0],["الأردن",0],["فلسطين",0],["لبنان",0],["روسيا",1],["كندا",1],["الصين",1],["الولايات المتحدة",1],["البرازيل",1],["أستراليا",1],["الهند",1],["الأرجنتين",1],["كازاخستان",1],["إندونيسيا",1],["تشيلي",1],["المكسيك",1]];
+const CITY_DB=[[["الجزائر العاصمة",36.7538,3.0588,"Africa/Algiers"],["وهران",35.6971,-0.6308,"Africa/Algiers"],["قسنطينة",36.365,6.6147,"Africa/Algiers"],["عنابة",36.9,7.7667,"Africa/Algiers"],["سطيف",36.19,5.41,"Africa/Algiers"],["تبسة",35.4042,8.1242,"Africa/Algiers"],["بسكرة",34.85,5.73,"Africa/Algiers"],["غرداية",32.49,3.67,"Africa/Algiers"],["ورقلة",31.9493,5.325,"Africa/Algiers"],["بشار",31.6238,-2.2162,"Africa/Algiers"],["أدرار",27.874,-0.294,"Africa/Algiers"],["تندوف",27.6711,-8.1474,"Africa/Algiers"],["إليزي",26.483,8.466,"Africa/Algiers"],["تمنراست",22.785,5.5228,"Africa/Algiers"]],[["الرباط",34.0209,-6.8416,"Africa/Casablanca"],["الدار البيضاء",33.5731,-7.5898,"Africa/Casablanca"],["فاس",34.0181,-5.0078,"Africa/Casablanca"],["مراكش",31.6295,-7.9811,"Africa/Casablanca"],["طنجة",35.7595,-5.834,"Africa/Casablanca"],["أكادير",30.4278,-9.5981,"Africa/Casablanca"],["وجدة",34.6814,-1.9086,"Africa/Casablanca"],["الراشيدية",31.9314,-4.4246,"Africa/Casablanca"]],[["تونس",36.8065,10.1815,"Africa/Tunis"],["صفاقس",34.7406,10.7603,"Africa/Tunis"],["سوسة",35.8256,10.636,"Africa/Tunis"],["القيروان",35.6781,10.0963,"Africa/Tunis"],["بنزرت",37.2744,9.8739,"Africa/Tunis"],["قابس",33.8815,10.0982,"Africa/Tunis"],["توزر",33.9197,8.1335,"Africa/Tunis"]],[["طرابلس",32.8872,13.1913,"Africa/Tripoli"],["بنغازي",32.1167,20.0667,"Africa/Tripoli"],["مصراتة",32.3754,15.0925,"Africa/Tripoli"],["سبها",27.0377,14.4283,"Africa/Tripoli"],["طبرق",32.0836,23.9764,"Africa/Tripoli"],["الكفرة",24.1997,23.2905,"Africa/Tripoli"]],[["القاهرة",30.0444,31.2357,"Africa/Cairo"],["الإسكندرية",31.2001,29.9187,"Africa/Cairo"],["بورسعيد",31.2653,32.3019,"Africa/Cairo"],["مرسى مطروح",31.3543,27.2373,"Africa/Cairo"],["الغردقة",27.2579,33.8116,"Africa/Cairo"],["الأقصر",25.6872,32.6396,"Africa/Cairo"],["أسوان",24.0889,32.8998,"Africa/Cairo"]],[["الخرطوم",15.5007,32.5599,"Africa/Khartoum"],["أم درمان",15.6445,32.4777,"Africa/Khartoum"],["بورتسودان",19.6158,37.2164,"Africa/Khartoum"],["كسلا",15.451,36.4,"Africa/Khartoum"],["دنقلا",19.1667,30.4833,"Africa/Khartoum"],["الأبيض",13.1843,30.2167,"Africa/Khartoum"],["نيالا",12.05,24.8833,"Africa/Khartoum"]],[["نواكشوط",18.0735,-15.9582,"Africa/Nouakchott"],["نواذيبو",20.931,-17.0347,"Africa/Nouakchott"],["أطار",20.5169,-13.0499,"Africa/Nouakchott"],["الزويرات",22.7354,-12.4713,"Africa/Nouakchott"],["كيفة",16.6203,-11.4044,"Africa/Nouakchott"],["النعمة",16.617,-7.256,"Africa/Nouakchott"]],[["الرياض",24.7136,46.6753,"Asia/Riyadh"],["مكة المكرمة",21.4225,39.8262,"Asia/Riyadh"],["المدينة المنورة",24.4686,39.6142,"Asia/Riyadh"],["جدة",21.4858,39.1925,"Asia/Riyadh"],["الدمام",26.4207,50.0888,"Asia/Riyadh"],["تبوك",28.3838,36.555,"Asia/Riyadh"],["حائل",27.5114,41.7208,"Asia/Riyadh"],["أبها",18.2164,42.5053,"Asia/Riyadh"]],[["صنعاء",15.3694,44.191,"Asia/Aden"],["عدن",12.7855,45.0187,"Asia/Aden"],["تعز",13.5795,44.0209,"Asia/Aden"],["الحديدة",14.7978,42.9545,"Asia/Aden"],["المكلا",14.5425,49.1242,"Asia/Aden"],["سيئون",15.9431,48.7879,"Asia/Aden"]],[["مسقط",23.588,58.3829,"Asia/Muscat"],["صلالة",17.0151,54.0924,"Asia/Muscat"],["صحار",24.3474,56.7299,"Asia/Muscat"],["نزوى",22.9333,57.5333,"Asia/Muscat"],["صور",22.5667,59.5289,"Asia/Muscat"],["خصب",26.1799,56.2477,"Asia/Muscat"]],[["أبوظبي",24.4539,54.3773,"Asia/Dubai"],["دبي",25.2048,55.2708,"Asia/Dubai"],["الشارقة",25.3463,55.4209,"Asia/Dubai"],["العين",24.2075,55.7447,"Asia/Dubai"],["رأس الخيمة",25.7895,55.9432,"Asia/Dubai"],["الفجيرة",25.1288,56.3265,"Asia/Dubai"]],[["الدوحة",25.2854,51.531,"Asia/Qatar"],["الوكرة",25.1659,51.5976,"Asia/Qatar"],["الخور",25.6839,51.5058,"Asia/Qatar"],["دخان",25.4241,50.7832,"Asia/Qatar"],["مسيعيد",24.9909,51.5493,"Asia/Qatar"]],[["مدينة الكويت",29.3759,47.9774,"Asia/Kuwait"],["الجهراء",29.3375,47.6581,"Asia/Kuwait"],["الفروانية",29.2775,47.9586,"Asia/Kuwait"],["الأحمدي",29.0769,48.0838,"Asia/Kuwait"]],[["بغداد",33.3152,44.3661,"Asia/Baghdad"],["البصرة",30.5085,47.7804,"Asia/Baghdad"],["الموصل",36.335,43.1189,"Asia/Baghdad"],["أربيل",36.1911,44.0092,"Asia/Baghdad"],["كركوك",35.4681,44.3922,"Asia/Baghdad"],["النجف",32.0259,44.3462,"Asia/Baghdad"],["كربلاء",32.616,44.0249,"Asia/Baghdad"]],[["دمشق",33.5138,36.2765,"Asia/Damascus"],["حلب",36.2021,37.1343,"Asia/Damascus"],["حمص",34.7324,36.7137,"Asia/Damascus"],["اللاذقية",35.5317,35.79,"Asia/Damascus"],["دير الزور",35.3359,40.1408,"Asia/Damascus"],["القامشلي",37.0517,41.2272,"Asia/Damascus"]],[["عمّان",31.9539,35.9106,"Asia/Amman"],["إربد",32.5568,35.8469,"Asia/Amman"],["الزرقاء",32.0728,36.088,"Asia/Amman"],["الكرك",31.1853,35.7048,"Asia/Amman"],["معان",30.1962,35.7341,"Asia/Amman"],["العقبة",29.5321,35.0063,"Asia/Amman"]],[["القدس",31.7683,35.2137,"Asia/Hebron"],["رام الله",31.9038,35.2034,"Asia/Hebron"],["نابلس",32.2211,35.2544,"Asia/Hebron"],["جنين",32.46,35.3,"Asia/Hebron"],["الخليل",31.5326,35.0998,"Asia/Hebron"],["غزة",31.5017,34.4668,"Asia/Gaza"],["رفح",31.2969,34.2436,"Asia/Gaza"]],[["بيروت",33.8938,35.5018,"Asia/Beirut"],["طرابلس",34.4367,35.8497,"Asia/Beirut"],["صيدا",33.5571,35.3729,"Asia/Beirut"],["صور",33.2705,35.2038,"Asia/Beirut"],["زحلة",33.8463,35.902,"Asia/Beirut"],["بعلبك",34.0047,36.211,"Asia/Beirut"]],[["موسكو",55.7558,37.6173,"Europe/Moscow"],["سانت بطرسبرغ",59.9311,30.3609,"Europe/Moscow"],["كالينينغراد",54.7104,20.4522,"Europe/Kaliningrad"],["مورمانسك",68.9585,33.0827,"Europe/Moscow"],["قازان",55.7887,49.1221,"Europe/Moscow"],["غروزني",43.3178,45.6949,"Europe/Moscow"],["يكاترينبورغ",56.8389,60.6057,"Asia/Yekaterinburg"],["نوفوسيبيرسك",55.0084,82.9357,"Asia/Novosibirsk"],["إيركوتسك",52.287,104.305,"Asia/Irkutsk"],["ياكوتسك",62.0355,129.6755,"Asia/Yakutsk"],["فلاديفوستوك",43.1155,131.8855,"Asia/Vladivostok"],["بتروبافلوفسك-كامتشاتسكي",53.0452,158.6511,"Asia/Kamchatka"]],[["أوتاوا",45.4215,-75.6972,"America/Toronto"],["تورنتو",43.6532,-79.3832,"America/Toronto"],["مونتريال",45.5019,-73.5674,"America/Toronto"],["هاليفاكس",44.6488,-63.5752,"America/Halifax"],["سانت جونز",47.5615,-52.7126,"America/St_Johns"],["وينيبيغ",49.8951,-97.1384,"America/Winnipeg"],["كالغاري",51.0447,-114.0719,"America/Edmonton"],["فانكوفر",49.2827,-123.1207,"America/Vancouver"],["وايت هورس",60.7212,-135.0568,"America/Whitehorse"],["إيكالويت",63.7467,-68.517,"America/Iqaluit"]],[["بكين",39.9042,116.4074,"Asia/Shanghai"],["شنغهاي",31.2304,121.4737,"Asia/Shanghai"],["قوانغتشو",23.1291,113.2644,"Asia/Shanghai"],["هايكو",20.044,110.1999,"Asia/Shanghai"],["تشنغدو",30.5728,104.0668,"Asia/Shanghai"],["شيآن",34.3416,108.9398,"Asia/Shanghai"],["هاربين",45.8038,126.5349,"Asia/Shanghai"],["لاسا",29.652,91.1721,"Asia/Shanghai"],["أورومتشي",43.8256,87.6168,"Asia/Shanghai"],["كاشغر",39.4704,75.9898,"Asia/Shanghai"]],[["واشنطن",38.9072,-77.0369,"America/New_York"],["نيويورك",40.7128,-74.006,"America/New_York"],["ميامي",25.7617,-80.1918,"America/New_York"],["ديترويت",42.3314,-83.0458,"America/Detroit"],["شيكاغو",41.8781,-87.6298,"America/Chicago"],["هيوستن",29.7604,-95.3698,"America/Chicago"],["دنفر",39.7392,-104.9903,"America/Denver"],["لوس أنجلوس",34.0522,-118.2437,"America/Los_Angeles"],["سياتل",47.6062,-122.3321,"America/Los_Angeles"],["أنكوريج",61.2181,-149.9003,"America/Anchorage"],["هونولولو",21.3069,-157.8583,"Pacific/Honolulu"]],[["برازيليا",-15.7975,-47.8919,"America/Sao_Paulo"],["ساو باولو",-23.5505,-46.6333,"America/Sao_Paulo"],["ريو دي جانيرو",-22.9068,-43.1729,"America/Sao_Paulo"],["بورتو أليغري",-30.0346,-51.2177,"America/Sao_Paulo"],["سلفادور",-12.9777,-38.5016,"America/Bahia"],["ريسيفي",-8.0476,-34.877,"America/Recife"],["بيليم",-1.4558,-48.4902,"America/Belem"],["ماناوس",-3.119,-60.0217,"America/Manaus"],["ريو برانكو",-9.9754,-67.8249,"America/Rio_Branco"]],[["كانبرا",-35.2809,149.13,"Australia/Sydney"],["سيدني",-33.8688,151.2093,"Australia/Sydney"],["ملبورن",-37.8136,144.9631,"Australia/Melbourne"],["بريزبن",-27.4698,153.0251,"Australia/Brisbane"],["هوبارت",-42.8821,147.3272,"Australia/Hobart"],["أديلايد",-34.9285,138.6007,"Australia/Adelaide"],["داروين",-12.4634,130.8456,"Australia/Darwin"],["أليس سبرينغز",-23.698,133.8807,"Australia/Darwin"],["بيرث",-31.9505,115.8605,"Australia/Perth"]],[["نيودلهي",28.6139,77.209,"Asia/Kolkata"],["مومباي",19.076,72.8777,"Asia/Kolkata"],["كولكاتا",22.5726,88.3639,"Asia/Kolkata"],["تشيناي",13.0827,80.2707,"Asia/Kolkata"],["بنغالور",12.9716,77.5946,"Asia/Kolkata"],["حيدر آباد",17.385,78.4867,"Asia/Kolkata"],["أحمد آباد",23.0225,72.5714,"Asia/Kolkata"],["لكناو",26.8467,80.9462,"Asia/Kolkata"],["غواهاتي",26.1445,91.7362,"Asia/Kolkata"],["سريناغار",34.0837,74.7973,"Asia/Kolkata"]],[["بوينس آيرس",-34.6037,-58.3816,"America/Argentina/Buenos_Aires"],["قرطبة",-31.4201,-64.1888,"America/Argentina/Buenos_Aires"],["روساريو",-32.9442,-60.6505,"America/Argentina/Buenos_Aires"],["مندوزا",-32.8895,-68.8458,"America/Argentina/Buenos_Aires"],["سالتا",-24.7821,-65.4232,"America/Argentina/Buenos_Aires"],["باريلوتشي",-41.1335,-71.3103,"America/Argentina/Buenos_Aires"],["أوشوايا",-54.8019,-68.303,"America/Argentina/Buenos_Aires"]],[["أستانا",51.1694,71.4491,"Asia/Almaty"],["ألماتي",43.222,76.8512,"Asia/Almaty"],["شيمكنت",42.3417,69.5901,"Asia/Almaty"],["كاراغاندا",49.8047,73.1094,"Asia/Almaty"],["أوسكمن",49.9483,82.6275,"Asia/Almaty"],["أتيراو",47.0945,51.9238,"Asia/Atyrau"],["أكتاو",43.65,51.16,"Asia/Aqtau"]],[["جاكرتا",-6.2088,106.8456,"Asia/Jakarta"],["باندونغ",-6.9175,107.6191,"Asia/Jakarta"],["سورابايا",-7.2575,112.7521,"Asia/Jakarta"],["ميدان",3.5952,98.6722,"Asia/Jakarta"],["باندا آتشيه",5.5483,95.3238,"Asia/Jakarta"],["دنباسار (بالي)",-8.6705,115.2126,"Asia/Makassar"],["ماكاسار",-5.1477,119.4327,"Asia/Makassar"],["باليكبابان",-1.2379,116.8529,"Asia/Makassar"],["أمبون",-3.6954,128.1814,"Asia/Jayapura"],["جايابورا",-2.5337,140.7181,"Asia/Jayapura"]],[["سانتياغو",-33.4489,-70.6693,"America/Santiago"],["فالبارايسو",-33.0472,-71.6127,"America/Santiago"],["أريكا",-18.4783,-70.3126,"America/Santiago"],["أنتوفاغاستا",-23.6509,-70.3975,"America/Santiago"],["كونسبسيون",-36.8201,-73.0444,"America/Santiago"],["بويرتو مونت",-41.4693,-72.9424,"America/Santiago"],["بونتا أريناس",-53.1638,-70.9171,"America/Punta_Arenas"]],[["مدينة مكسيكو",19.4326,-99.1332,"America/Mexico_City"],["غوادالاخارا",20.6597,-103.3496,"America/Mexico_City"],["مونتيري",25.6866,-100.3161,"America/Monterrey"],["أواكساكا",17.0732,-96.7266,"America/Mexico_City"],["ميريدا",20.9674,-89.5926,"America/Merida"],["كانكون",21.1619,-86.8515,"America/Cancun"],["هيرموسيو",29.0729,-110.9559,"America/Hermosillo"],["لاباز",24.1426,-110.3128,"America/Mazatlan"],["تيخوانا",32.5149,-117.0382,"America/Tijuana"]]];
+
+/* ---------- place: shares the country, city and GPS fix with the main clock ---------- */
+const tzFmt={};
+function tzOff(zone,lon){try{const f=tzFmt[zone]||(tzFmt[zone]=new Intl.DateTimeFormat("en-US",{timeZone:zone,hourCycle:"h23",year:"numeric",month:"numeric",day:"numeric",hour:"numeric",minute:"numeric"}));
+  const now=new Date(),p={};f.formatToParts(now).forEach(x=>p[x.type]=+x.value);
+  return Math.round((Date.UTC(p.year,p.month-1,p.day,p.hour%24,p.minute)-Math.floor(now.getTime()/6e4)*6e4)/6e4)/60}catch(e){return Math.round(lon/15)}}
+let fix=loadFix();
+let co=store.get("hisban-country");if(co==null||!CITY_DB[co])co=0;
+let ci=store.get("hisban-ci");
+function place(){const list=CITY_DB[co];
+  if(ci==null||ci<0||ci>list.length||(ci===list.length&&!fix))ci=0;
+  if(ci===list.length){const p=fixPos(fix);return{name:"موقعي الحالي",lat:p[0],lon:p[1],tz:devTz,mine:true}}
+  const c=list[ci];return{name:c[0],lat:c[1],lon:c[2],tz:tzOff(c[3],c[2]),mine:false}}
+
+/* ---------- prayer methods (twilight angles in degrees; ishaMin = fixed minutes after sunset) ---------- */
+const MW=[18,17],METHODS={0:[18,17,"وزارة الشؤون الدينية الجزائرية"],1:[19,17,"وزارة الأوقاف المغربية"],2:[18,18,"تونس"],4:[19.5,17.5,"الهيئة المصرية للمساحة"],5:[19.5,17.5,"الهيئة المصرية"],
+  7:[18.5,null,"أم القرى",90],10:[18.2,18.2,"الهيئة العامة للشؤون الإسلامية الإماراتية"],11:[18,null,"قطر",90],12:[18,17.5,"الكويت"],
+  19:[15,15,"الجمعية الإسلامية لأمريكا الشمالية"],21:[15,15,"الجمعية الإسلامية لأمريكا الشمالية"],24:[18,18,"جامعة العلوم الإسلامية بكراتشي"],27:[20,18,"وزارة الشؤون الدينية الإندونيسية"]};
+const method=()=>{const m=METHODS[co];return m?{fa:m[0],ia:m[1],name:m[2],ishaMin:m[3]}:{fa:MW[0],ia:MW[1],name:"رابطة العالم الإسلامي"}};
+let hanafi=!!store.get("hisban-asr-hanafi");
+
+function prayers(P,d){
+  const S=sun(d,P.lat,P.lon,P.tz),la=P.lat*rad;
+  const cosH=a=>(Math.sin(a*rad)-Math.sin(la)*Math.sin(S.dec))/(Math.cos(la)*Math.cos(S.dec));
+  const ha=a=>{const c=cosH(a);return c<-1||c>1?null:Math.acos(c)*deg/15};
+  const polar=cosH(-.833)>1?"night":cosH(-.833)<-1?"day":null;
+  if(polar)return{S,polar};
+  const m=method(),night=24-(S.set-S.rise);
+  let fH=ha(-m.fa),fajr=fH!=null?S.noon-fH:S.rise-night*m.fa/60;          // high latitudes: angle-based share of the night
+  let isha;if(m.ishaMin)isha=S.set+m.ishaMin/60;else{const iH=ha(-m.ia);isha=iH!=null?S.noon+iH:S.set+night*m.ia/60}
+  const asrAlt=Math.atan(1/((hanafi?2:1)+Math.tan(Math.abs(la-S.dec))))*deg,aH=ha(asrAlt);
+  const asr=aH!=null?S.noon+aH:(S.noon+S.set)/2;
+  return{S,list:[["الفجر",fajr],["الشروق",S.rise,1],["الظهر",S.noon+1/60],["العصر",asr],["المغرب",S.set],["العشاء",isha]],m};
+}
+
+/* ---------- formatting ---------- */
+const fmt12=h=>{h=((h%24)+24)%24;let m=Math.round(h*60)%1440,H=Math.floor(m/60),M=m%60;const ap=H<12?"ص":"م";H=H%12||12;return pad2(H)+":"+pad2(M)+" "+ap};
+const fmtHMS=h=>{h=((h%24)+24)%24;const t=Math.round(h*3600)%86400;return pad2(Math.floor(t/3600))+":"+pad2(Math.floor(t%3600/60))+":"+pad2(t%60)};
+const dur=h=>{const t=Math.max(0,Math.floor(h*3600));return pad2(Math.floor(t/3600))+" : "+pad2(Math.floor(t%3600/60))+" : "+pad2(t%60)};
+
+/* ---------- clock face: 0° (sunrise) at the top, 15° per hour, like the main clock's angle ---------- */
+const C=(r,a)=>[150+r*Math.sin(a*rad),150-r*Math.cos(a*rad)];
+const arcP=(r,a1,a2)=>{const s=C(r,a1),e=C(r,a2),span=((a2-a1)%360+360)%360;return`M${s[0].toFixed(1)} ${s[1].toFixed(1)}A${r} ${r} 0 ${span>180?1:0} 1 ${e[0].toFixed(1)} ${e[1].toFixed(1)}`};
+function drawFace(hb,startHb,marks,sec){
+  let t=`<circle cx="150" cy="150" r="140" fill="var(--face)"/>`;
+  for(let a=0;a<360;a+=30){const[x,y]=C(117,a);t+=`<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" dominant-baseline="central" fill="#9aa0a6" font-size="13" font-family="Roboto,Arial" direction="ltr">${a}°</text>`}
+  t+=`<circle cx="150" cy="150" r="96" fill="#fff" style="filter:drop-shadow(0 4px 10px rgba(30,40,60,.10))"/>`;
+  if(startHb!=null)t+=`<path d="${arcP(143,startHb,hb)}" fill="none" stroke="var(--blue)" stroke-width="4.5" stroke-linecap="round"/>`;
+  marks.forEach(([a,on])=>{const[x,y]=C(143,a);t+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${on?4.5:3}" fill="${on?"var(--blue)":"#c7ccd1"}"/>`});
+  const[hx,hy]=C(78,hb),[tx,ty]=C(-14,hb),[sx,sy]=C(88,sec*6),[bx,by]=C(-22,sec*6);
+  t+=`<line x1="${tx.toFixed(1)}" y1="${ty.toFixed(1)}" x2="${hx.toFixed(1)}" y2="${hy.toFixed(1)}" stroke="#111" stroke-width="7" stroke-linecap="round"/>`;
+  t+=`<line x1="${bx.toFixed(1)}" y1="${by.toFixed(1)}" x2="${sx.toFixed(1)}" y2="${sy.toFixed(1)}" stroke="var(--blue)" stroke-width="1.8" stroke-linecap="round"/>`;
+  t+=`<circle cx="150" cy="150" r="4" fill="#111"/>`;
+  $("face").innerHTML=t;
+}
+
+/* ---------- views ---------- */
+let view="clock";
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>show(b.dataset.v));
+function show(v){view=v;document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected",b.dataset.v===v));
+  ["clock","list","qibla","world"].forEach(k=>$("v-"+k).hidden=k!==v);if(v==="world")renderWorld(null);if(v!=="qibla"&&qOn)qToggle();tick()}
+$("menu").onclick=()=>show("world");
+
+/* cities */
+function renderWorld(c){const w=$("world");$("back").hidden=c==null;
+  if(c==null){w.innerHTML=["الدول العربية","دول ذات امتداد جغرافي كبير"].map((g,gi)=>`<div class="grp">${g}</div><div class="grid">`+
+    COUNTRY_NAMES.map((n,i)=>n[1]===gi?`<button class="item${i===co?" on":""}" data-co="${i}">${n[0]}<small>${CITY_DB[i].length} ${CITY_DB[i].length>10?"مدينة":"مدن"}</small></button>`:"").join("")+`</div>`).join("");return}
+  w.innerHTML=`<div class="grp">${COUNTRY_NAMES[c][0]}: اختر المدينة</div><div class="grid">`+CITY_DB[c].map((x,k)=>`<button class="item${c===co&&k===ci?" on":""}" data-ci="${k}" data-c="${c}">${x[0]}</button>`).join("")+
+    `<button class="item" data-gps="${c}">📍 موقعي الحالي<small>GPS</small></button></div><p class="note" id="gpsMsg"></p>`}
+$("back").onclick=()=>renderWorld(null);
+$("world").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
+  if(b.dataset.co!=null){renderWorld(+b.dataset.co);scrollTo(0,0);return}
+  if(b.dataset.gps!=null){const c=+b.dataset.gps;if(!navigator.geolocation){$("gpsMsg").textContent="الهاتف لا يدعم تحديد الموقع.";return}
+    $("gpsMsg").textContent="جارٍ تحديد موقعك…";
+    navigator.geolocation.getCurrentPosition(p=>{fix=freshFix(p.coords.latitude,p.coords.longitude,p.coords.accuracy,"gps");store.set("hisban-fix",fix);
+      co=c;ci=CITY_DB[c].length;store.set("hisban-country",co);store.set("hisban-ci",ci);show("clock")},
+      ()=>{$("gpsMsg").textContent="تعذّر تحديد الموقع. تأكد من تفعيل GPS والسماح للمتصفح."},{enableHighAccuracy:true,timeout:20000});return}
+  co=+b.dataset.c;ci=+b.dataset.ci;store.set("hisban-country",co);store.set("hisban-ci",ci);show("clock")});
+
+/* asr school */
+function setAsr(h){hanafi=h;store.set("hisban-asr-hanafi",h);$("asr1").setAttribute("aria-pressed",!h);$("asr2").setAttribute("aria-pressed",h);tick()}
+$("asr1").onclick=()=>setAsr(false);$("asr2").onclick=()=>setAsr(true);setAsr(hanafi);
+
+/* qibla */
+let qOn=false;
+async function qToggle(){if(qOn){qOn=false;oriStop("qibla");$("qBtn").textContent="تشغيل البوصلة";return}
+  if(!(await sensorPermission(false))){$("qMsg").textContent="لم يُسمح باستخدام مستشعر الاتجاه.";return}
+  qOn=true;oriStart("qibla");$("qBtn").textContent="إيقاف البوصلة";$("qMsg").textContent="انتظر قراءة المستشعر…"}
+$("qBtn").onclick=qToggle;
+function drawQibla(P){const q=bearing(P.lat,P.lon,KAABA[0],KAABA[1]),km=distM(P.lat,P.lon,KAABA[0],KAABA[1])/1000;
+  const rot=qOn&&heading!=null?-heading:0;
+  let t=`<circle cx="150" cy="150" r="140" fill="#fff"/><g transform="rotate(${rot.toFixed(1)} 150 150)">`;
+  for(let a=0;a<360;a+=10){const[x1,y1]=C(136,a),[x2,y2]=C(a%30?130:124,a);t+=`<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#c7ccd1" stroke-width="${a%30?1:2}"/>`}
+  [["ش",0,"#d64545"],["ق",90,"#9aa0a6"],["ج",180,"#9aa0a6"],["غ",270,"#9aa0a6"]].forEach(([l,a,c])=>{const[x,y]=C(108,a);t+=`<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" dominant-baseline="central" font-size="16" font-weight="700" fill="${c}" font-family="Cairo,Tahoma">${l}</text>`});
+  const[kx,ky]=C(92,q);t+=`<line x1="150" y1="150" x2="${kx.toFixed(1)}" y2="${ky.toFixed(1)}" stroke="var(--blue)" stroke-width="5" stroke-linecap="round"/><rect x="${(kx-9).toFixed(1)}" y="${(ky-9).toFixed(1)}" width="18" height="18" rx="3" fill="#111" transform="rotate(${q.toFixed(1)} ${kx.toFixed(1)} ${ky.toFixed(1)})"/></g>`;
+  t+=`<path d="M150 4l8 14h-16z" fill="#111"/><circle cx="150" cy="150" r="5" fill="#111"/>`;
+  $("qface").innerHTML=t;$("qDeg").textContent=q.toFixed(1)+"°";
+  if(qOn&&heading!=null){const d=((q-heading+540)%360)-180;$("qMsg").textContent=Math.abs(d)<3?"✓ أنت متجه نحو القبلة":`أدِر الهاتف ${d>0?"يمينًا":"يسارًا"} ${Math.abs(d).toFixed(0)}° · المسافة إلى مكة ${Math.round(km).toLocaleString("ar")} كم`}
+  else if(!qOn)$("qMsg").textContent=`اتجاه القبلة من الشمال الحقيقي · المسافة إلى مكة ${Math.round(km).toLocaleString("ar")} كم`}
+
+/* ---------- main loop ---------- */
+function tick(){
+  if(fix){fix=loadFix()||fix}
+  const P=place(),{d,h}=localNow(P.tz),R=prayers(P,d),S=R.S;
+  $("city").textContent=P.name;
+  $("sub").textContent=COUNTRY_NAMES[co][0]+" · "+(P.mine?(fix&&fix.src==="gps"?"موقع GPS":"الموقع مثبت يدويًا"):"مدينة مختارة");
+  const ld=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()));
+  $("greg").textContent=new Intl.DateTimeFormat("ar-DZ-u-nu-latn",{day:"numeric",month:"long",year:"numeric",timeZone:"UTC"}).format(ld);
+  try{$("hijri").textContent=new Intl.DateTimeFormat("ar-SA-u-ca-islamic-umalqura-nu-latn",{day:"numeric",month:"long",year:"numeric",timeZone:"UTC"}).format(ld)}catch(e){}
+  const hb=husban(h,S.rise),sec=new Date().getSeconds();
+  $("hb").textContent=hb.toFixed(4)+"°";
+  $("rise").textContent=fmtHMS(S.rise);$("set").textContent=fmtHMS(S.set);
+  $("riseU").textContent="UTC "+fmtHMS(S.rise-P.tz);$("setU").textContent="UTC "+fmtHMS(S.set-P.tz);
+  const dayLen=S.set-S.rise,isDay=h>=S.rise&&h<S.set;
+  const pct=isDay?(h-S.rise)/dayLen:(((h-S.set)%24+24)%24)/(24-dayLen);
+  $("pctL").textContent=isDay?"مضى من نهارك":"مضى من ليلك";$("pct").textContent=Math.round(pct*100)+"%";
+  $("arcs").textContent=(dayLen*15).toFixed(4)+"° / "+((24-dayLen)*15).toFixed(4)+"°";
+  if(R.polar){$("prName").textContent=R.polar==="night"?"ليل قطبي":"نهار قطبي";$("prAt").textContent="الشمس لا "+(R.polar==="night"?"تشرق":"تغرب")+" اليوم";$("prEl").textContent="—";$("prNext").textContent="";
+    drawFace(hb,null,[],sec);$("list").innerHTML=`<p class="note">لا تتوفر مواقيت محسوبة في الليل أو النهار القطبي.</p>`;$("method").textContent="";if(view==="qibla")drawQibla(P);return}
+  const L=R.list;let cur=-1;L.forEach((p,i)=>{if(h>=p[1])cur=i});
+  const curP=cur<0?["العشاء",L[5][1]-24]:L[cur],nxt=cur<0?L[0]:cur<5?L[cur+1]:["الفجر",L[0][1]+24];
+  $("prName").textContent=curP[0];$("prAt").textContent=fmt12(curP[1]);$("prEl").textContent="+ "+dur(h-curP[1]);
+  $("prNext").innerHTML=`التالي: <b>${nxt[0]}</b> بعد <span class="num" dir="ltr">${dur(nxt[1]-h).replace(/ /g,"")}</span>`;
+  drawFace(hb,husban(curP[1],S.rise),L.map((p,i)=>[husban(p[1],S.rise),i===cur]),sec);
+  if(view==="list"){$("list").innerHTML=L.map((p,i)=>`<div class="row${i===cur?" on":""}${p[2]?" sun":""}"><span class="n">${p[0]}</span><span class="t">${fmt12(p[1])}</span><span class="a">${husban(p[1],S.rise).toFixed(4)}°</span></div>`).join("");
+    $("method").textContent=`الحساب: ${R.m.name} — الفجر عند ${R.m.fa}° تحت الأفق، والعشاء ${R.m.ishaMin?`بعد المغرب بـ ${R.m.ishaMin} دقيقة`:`عند ${R.m.ia}°`}. حساب فلكي من الهاتف دون إنترنت؛ قد يختلف دقيقة أو دقيقتين عن التقويم الرسمي.`}
+  if(view==="qibla")drawQibla(P);
+}
+tick();setInterval(tick,1000);
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>
