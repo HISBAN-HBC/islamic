@@ -37,6 +37,7 @@ button{font:inherit;color:inherit}
 .view[hidden]{display:none}
 /* clock */
 .face{display:block;width:min(86vw,360px);margin:20px auto 0;filter:drop-shadow(0 18px 30px var(--shadow))}
+#face{width:min(100%,440px);margin-top:8px}
 .now{text-align:center;margin-top:22px}
 .now .pr{color:var(--teal);font-size:2.2rem;font-weight:600;line-height:1.2}
 .now .at{color:var(--muted);font-size:1.35rem;margin-top:6px;font-family:var(--num);direction:ltr;unicode-bidi:isolate}
@@ -93,7 +94,7 @@ nav.tabs{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px s
 
   <!-- 1) clock -->
   <section class="view" id="v-clock">
-    <svg class="face" id="face" viewBox="0 0 300 300" role="img" aria-label="قرص زاوية حُسبان"></svg>
+    <svg class="face" id="face" viewBox="-72 -46 444 392" role="img" aria-label="قرص زاوية حُسبان"></svg>
     <div class="now" aria-live="polite">
       <div class="pr" id="prName">—</div>
       <div class="at" id="prAt">—</div>
@@ -190,19 +191,29 @@ const fmt12=h=>{h=((h%24)+24)%24;let m=Math.round(h*60)%1440,H=Math.floor(m/60),
 const fmtHMS=h=>{h=((h%24)+24)%24;const t=Math.round(h*3600)%86400;return pad2(Math.floor(t/3600))+":"+pad2(Math.floor(t%3600/60))+":"+pad2(t%60)};
 const dur=h=>{const t=Math.max(0,Math.floor(h*3600));return pad2(Math.floor(t/3600))+" : "+pad2(Math.floor(t%3600/60))+" : "+pad2(t%60)};
 
-/* ---------- clock face: 0° (sunrise) at the top, 15° per hour, like the main clock's angle ---------- */
+/* ---------- clock face: same geometry and colours as ساعة حُسبان —
+   top = بداية النهار (sunrise), right = منتصف النهار, bottom = بداية اليوم (sunset), left = منتصف الليل;
+   the day fills the right half, the night the left half (dialA from the core) ---------- */
 const C=(r,a)=>[150+r*Math.sin(a*rad),150-r*Math.cos(a*rad)];
 const arcP=(r,a1,a2)=>{const s=C(r,a1),e=C(r,a2),span=((a2-a1)%360+360)%360;return`M${s[0].toFixed(1)} ${s[1].toFixed(1)}A${r} ${r} 0 ${span>180?1:0} 1 ${e[0].toFixed(1)} ${e[1].toFixed(1)}`};
-function drawFace(hb,startHb,marks,sec){
-  let t=`<circle cx="150" cy="150" r="140" fill="var(--face)"/>`;
-  for(let a=0;a<360;a+=30){const[x,y]=C(117,a);t+=`<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" dominant-baseline="central" fill="#9aa0a6" font-size="13" font-family="Roboto,Arial" direction="ltr">${a}°</text>`}
+const pill=(icon,sub,tm,a,c)=>{const[x,y]=C(a%180?172:178,a);return`<g transform="translate(${x.toFixed(1)},${y.toFixed(1)})"><rect x="-46" y="-19" width="92" height="38" rx="19" fill="#fff" stroke="${c}" stroke-width="1.4" style="filter:drop-shadow(0 2px 4px rgba(30,40,60,.08))"/><text text-anchor="middle" y="-2" fill="${c}" font-size="11" font-weight="700" font-family="Cairo,Tahoma">${icon} ${sub}</text><text text-anchor="middle" y="12" fill="#1c1f23" font-size="10" font-family="Roboto,Arial" direction="ltr">${tm}</text></g>`};
+function drawFace(S,h,startT,marks,sec){
+  const pos=t=>dialA(t,S),aN=pos(h),dayLen=S.set-S.rise,midnight=S.set+(24-dayLen)/2;
+  let t=`<defs><linearGradient id="gD" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f1cf7a"/><stop offset="1" stop-color="#c9972e"/></linearGradient><linearGradient id="gN" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#5b8fd9"/><stop offset="1" stop-color="#2c4a8a"/></linearGradient></defs>`;
+  t+=`<circle cx="150" cy="150" r="140" fill="var(--face)"/>`;
+  for(let a=0;a<360;a+=30){if(a===90||a===270)continue;const[x,y]=C(117,a);t+=`<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" dominant-baseline="central" fill="#9aa0a6" font-size="12" font-family="Roboto,Arial" direction="ltr">${a}°</text>`}
+  t+=`<path d="${arcP(140,0.5,179.5)}" fill="none" stroke="url(#gD)" stroke-opacity=".28" stroke-width="7"/><path d="${arcP(140,180.5,359.5)}" fill="none" stroke="url(#gN)" stroke-opacity=".28" stroke-width="7"/>`;
+  // elapsed part of the current half (day or night), full colour
+  t+=aN<180?`<path d="${arcP(140,0.5,Math.max(aN,0.6))}" fill="none" stroke="url(#gD)" stroke-width="7" stroke-linecap="round"/>`:`<path d="${arcP(140,180.5,Math.max(aN,180.6))}" fill="none" stroke="url(#gN)" stroke-width="7" stroke-linecap="round"/>`;
   t+=`<circle cx="150" cy="150" r="96" fill="#fff" style="filter:drop-shadow(0 4px 10px rgba(30,40,60,.10))"/>`;
-  if(startHb!=null)t+=`<path d="${arcP(143,startHb,hb)}" fill="none" stroke="var(--blue)" stroke-width="4.5" stroke-linecap="round"/>`;
-  marks.forEach(([a,on])=>{const[x,y]=C(143,a);t+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${on?4.5:3}" fill="${on?"var(--blue)":"#c7ccd1"}"/>`});
-  const[hx,hy]=C(78,hb),[tx,ty]=C(-14,hb),[sx,sy]=C(88,sec*6),[bx,by]=C(-22,sec*6);
+  if(startT!=null)t+=`<path d="${arcP(126,pos(startT),aN)}" fill="none" stroke="var(--blue)" stroke-width="3.5" stroke-linecap="round"/>`;
+  marks.forEach(([tm,on])=>{const[x,y]=C(126,pos(tm));t+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${on?4.5:3}" fill="${on?"var(--blue)":"#c7ccd1"}"/>`});
+  const[hx,hy]=C(80,aN),[tx,ty]=C(-14,aN),[sx,sy]=C(88,sec*6),[bx,by]=C(-22,sec*6),[mx,my]=C(140,aN);
+  t+=`<circle cx="${mx.toFixed(1)}" cy="${my.toFixed(1)}" r="7" fill="#fff" stroke="${aN<180?"#c9972e":"#2c4a8a"}" stroke-width="3"/>`;
   t+=`<line x1="${tx.toFixed(1)}" y1="${ty.toFixed(1)}" x2="${hx.toFixed(1)}" y2="${hy.toFixed(1)}" stroke="#111" stroke-width="7" stroke-linecap="round"/>`;
   t+=`<line x1="${bx.toFixed(1)}" y1="${by.toFixed(1)}" x2="${sx.toFixed(1)}" y2="${sy.toFixed(1)}" stroke="var(--blue)" stroke-width="1.8" stroke-linecap="round"/>`;
   t+=`<circle cx="150" cy="150" r="4" fill="#111"/>`;
+  t+=pill("☀","بداية النهار",fmt(S.rise),0,"#c9972e")+pill("◑","منتصف النهار",fmt(S.noon),90,"#c9972e")+pill("☾","بداية اليوم",fmt(S.set),180,"#2c4a8a")+pill("✦","منتصف الليل",fmt(midnight),270,"#2c4a8a");
   $("face").innerHTML=t;
 }
 
@@ -268,12 +279,12 @@ function tick(){
   $("pctL").textContent=isDay?"مضى من نهارك":"مضى من ليلك";$("pct").textContent=Math.round(pct*100)+"%";
   $("arcs").textContent=(dayLen*15).toFixed(4)+"° / "+((24-dayLen)*15).toFixed(4)+"°";
   if(R.polar){$("prName").textContent=R.polar==="night"?"ليل قطبي":"نهار قطبي";$("prAt").textContent="الشمس لا "+(R.polar==="night"?"تشرق":"تغرب")+" اليوم";$("prEl").textContent="—";$("prNext").textContent="";
-    drawFace(hb,null,[],sec);$("list").innerHTML=`<p class="note">لا تتوفر مواقيت محسوبة في الليل أو النهار القطبي.</p>`;$("method").textContent="";if(view==="qibla")drawQibla(P);return}
+    drawFace(S,h,null,[],sec);$("list").innerHTML=`<p class="note">لا تتوفر مواقيت محسوبة في الليل أو النهار القطبي.</p>`;$("method").textContent="";if(view==="qibla")drawQibla(P);return}
   const L=R.list;let cur=-1;L.forEach((p,i)=>{if(h>=p[1])cur=i});
   const curP=cur<0?["العشاء",L[5][1]-24]:L[cur],nxt=cur<0?L[0]:cur<5?L[cur+1]:["الفجر",L[0][1]+24];
   $("prName").textContent=curP[0];$("prAt").textContent=fmt12(curP[1]);$("prEl").textContent="+ "+dur(h-curP[1]);
   $("prNext").innerHTML=`التالي: <b>${nxt[0]}</b> بعد <span class="num" dir="ltr">${dur(nxt[1]-h).replace(/ /g,"")}</span>`;
-  drawFace(hb,husban(curP[1],S.rise),L.map((p,i)=>[husban(p[1],S.rise),i===cur]),sec);
+  drawFace(S,h,curP[1],L.map((p,i)=>[p[1],i===cur]),sec);
   if(view==="list"){$("list").innerHTML=L.map((p,i)=>`<div class="row${i===cur?" on":""}${p[2]?" sun":""}"><span class="n">${p[0]}</span><span class="t">${fmt12(p[1])}</span><span class="a">${husban(p[1],S.rise).toFixed(4)}°</span></div>`).join("");
     $("method").textContent=`الحساب: ${R.m.name} — الفجر عند ${R.m.fa}° تحت الأفق، والعشاء ${R.m.ishaMin?`بعد المغرب بـ ${R.m.ishaMin} دقيقة`:`عند ${R.m.ia}°`}. حساب فلكي من الهاتف دون إنترنت؛ قد يختلف دقيقة أو دقيقتين عن التقويم الرسمي.`}
   if(view==="qibla")drawQibla(P);

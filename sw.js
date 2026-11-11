@@ -1,5 +1,5 @@
 // HISBAN Islamic model offline cache: network first, cached copy when there is no network
-const CACHE = "hisban-islamic-1.0";
+const CACHE = "hisban-islamic-1.1";
 const FILES = ["./", "./index.html", "./hisban-core.js", "./manifest.json", "./icon-192.png", "./icon-512.png"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)));
